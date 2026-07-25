@@ -82,35 +82,37 @@ info "Applying database migrations..."
 if ! attempt_migrate; then
   warn "Could not reach the database at: $DB_URL"
 
-  if command -v docker >/dev/null 2>&1 && [[ "$DB_URL" =~ ^postgres(ql)?://([^:]+):([^@]+)@localhost:([0-9]+)/(.+)$ ]]; then
+  if command -v apt-get >/dev/null 2>&1 && [[ "$DB_URL" =~ ^postgres(ql)?://([^:]+):([^@]+)@localhost:([0-9]+)/(.+)$ ]]; then
     DB_USER="${BASH_REMATCH[2]}"
     DB_PASS="${BASH_REMATCH[3]}"
     DB_PORT="${BASH_REMATCH[4]}"
     DB_NAME="${BASH_REMATCH[5]}"
 
-    info "Docker detected — spinning up a local Postgres container (freedomtree-postgres)..."
-    if docker ps -a --format '{{.Names}}' | grep -qx freedomtree-postgres; then
-      docker start freedomtree-postgres >/dev/null
-    else
-      docker run -d --name freedomtree-postgres \
-        -e "POSTGRES_USER=$DB_USER" -e "POSTGRES_PASSWORD=$DB_PASS" -e "POSTGRES_DB=$DB_NAME" \
-        -p "$DB_PORT:5432" postgres:16 >/dev/null
+    if [[ "$DB_PORT" != "5432" ]]; then
+      fail "DATABASE_URL uses port $DB_PORT, but native Postgres installs listen on 5432.
+Either change the port in DATABASE_URL to 5432, or point it at an already-running Postgres."
     fi
 
-    info "Waiting for Postgres to accept connections..."
-    for i in $(seq 1 30); do
-      docker exec freedomtree-postgres pg_isready -U "$DB_USER" >/dev/null 2>&1 && break
-      sleep 1
-    done
+    if ! command -v psql >/dev/null 2>&1; then
+      info "Postgres not found — installing via apt..."
+      sudo apt-get update -qq
+      sudo apt-get install -y -qq postgresql postgresql-contrib
+      ok "Postgres installed"
+    fi
+    sudo systemctl enable --now postgresql >/dev/null 2>&1 || true
 
-    attempt_migrate || fail "Postgres container started but migrations still failed. Check: docker logs freedomtree-postgres"
-    ok "Local Postgres container ready and migrations applied"
+    info "Creating role/database ($DB_USER / $DB_NAME) if missing..."
+    sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" \
+      | grep -q 1 || sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASS';"
+    sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" \
+      | grep -q 1 || sudo -u postgres psql -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;"
+    ok "Role/database ready"
+
+    attempt_migrate || fail "Postgres is running but migrations still failed. Check the DATABASE_URL credentials match what was just created."
+    ok "Postgres installed locally and migrations applied"
   else
-    fail "No reachable database and no Docker fallback available.
-Either:
-  - Start a local Postgres matching DATABASE_URL in apps/web/.env.local, or
-  - Install Docker Desktop and re-run: bash scripts/setup.sh
-Then re-run this script — it's safe to run again."
+    fail "No reachable database, and no apt-based auto-install available on this system.
+Start a local Postgres matching DATABASE_URL in apps/web/.env.local, then re-run this script — it's safe to run again."
   fi
 else
   ok "Migrations applied"
