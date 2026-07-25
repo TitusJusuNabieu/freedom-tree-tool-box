@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth/requireAuth";
 import { reportSchema } from "@freedomtree/shared";
 import { randomUUID } from "crypto";
+import { logActivity, getClientIp } from "@/lib/audit/log";
 
 function parseEnumArray(raw: string): string[] {
   if (!raw) return [];
@@ -113,6 +114,17 @@ export async function POST(req: NextRequest) {
       results.push({ row: rowNum, status: "error", error: message });
     }
   }
+
+  await logActivity({
+    action: "IMPORT",
+    targetType: "Report",
+    actorId: identity.userId,
+    actorName: identity.name,
+    actorRole: identity.role,
+    summary: `${identity.name} imported ${successCount} of ${rows.length} reports from a spreadsheet`,
+    metadata: { total: rows.length, imported: successCount, errorCount: rows.length - successCount },
+    ipAddress: getClientIp(req.headers),
+  });
 
   return NextResponse.json({
     total: rows.length,

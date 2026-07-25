@@ -11,6 +11,18 @@ function monthStart(year: number, month: number) {
 async function main() {
   const passwordHash = await bcrypt.hash("password123", 10);
 
+  const superAdmin = await prisma.user.upsert({
+    where: { username: "superadmin" },
+    update: {},
+    create: {
+      username: "superadmin",
+      passwordHash,
+      name: "Fatmata Conteh",
+      position: "Executive Director",
+      role: Role.SUPER_ADMIN,
+    },
+  });
+
   const admin = await prisma.user.upsert({
     where: { username: "admin" },
     update: {},
@@ -20,6 +32,19 @@ async function main() {
       name: "Aminata Kamara",
       position: "Program Manager",
       role: Role.ADMIN,
+    },
+  });
+
+  const manager = await prisma.user.upsert({
+    where: { username: "manager" },
+    update: {},
+    create: {
+      username: "manager",
+      passwordHash,
+      name: "Ibrahim Turay",
+      position: "Field Supervisor",
+      role: Role.SUPERVISOR,
+      community: "Bo Town",
     },
   });
 
@@ -82,7 +107,9 @@ async function main() {
   }
 
   console.log("Seeded users:", {
+    superAdmin: superAdmin.username,
     admin: admin.username,
+    manager: manager.username,
     fieldWorker: fieldWorker.username,
   });
   console.log("Login with password: password123");

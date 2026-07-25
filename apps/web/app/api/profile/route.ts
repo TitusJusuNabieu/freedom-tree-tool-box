@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth/requireAuth";
+import { logActivity, getClientIp } from "@/lib/audit/log";
 
 const userSelect = {
   id: true,
@@ -42,6 +43,17 @@ export async function PUT(req: NextRequest) {
     where: { id: identity.userId },
     data: updateData,
     select: userSelect,
+  });
+
+  await logActivity({
+    action: "UPDATE",
+    targetType: "Profile",
+    targetId: user.id,
+    actorId: identity.userId,
+    actorName: identity.name,
+    actorRole: identity.role,
+    summary: `${identity.name} updated their profile`,
+    ipAddress: getClientIp(req.headers),
   });
 
   return NextResponse.json(user);

@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth/requireAuth";
+import { logActivity, getClientIp } from "@/lib/audit/log";
 
 // Omit passwordHash from all responses
 const userSelect = {
@@ -97,6 +98,18 @@ export async function POST(req: NextRequest) {
       community: community ?? null,
     },
     select: userSelect,
+  });
+
+  await logActivity({
+    action: "CREATE",
+    targetType: "User",
+    targetId: user.id,
+    actorId: identity.userId,
+    actorName: identity.name,
+    actorRole: identity.role,
+    summary: `${identity.name} created user "${user.username}" (${user.role})`,
+    metadata: { username: user.username, role: user.role },
+    ipAddress: getClientIp(req.headers),
   });
 
   return NextResponse.json(user, { status: 201 });

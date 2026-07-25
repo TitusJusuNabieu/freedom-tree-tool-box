@@ -37,6 +37,19 @@ enum SyncOrigin {
   WEB
 }
 
+enum ActivityAction {
+  LOGIN
+  LOGIN_FAILED
+  LOGOUT
+  CREATE
+  UPDATE
+  DELETE
+  STATUS_CHANGE
+  ROLE_CHANGE
+  IMPORT
+  PASSWORD_CHANGE
+}
+
 model User {
   id            String         @id @default(uuid())
   username      String         @unique
@@ -51,8 +64,32 @@ model User {
   reports          Report[]
   educationSurveys EducationSurvey[]
   maternalSurveys  MaternalHealthSurvey[]
+  activityLogs     ActivityLog[]
   createdAt        DateTime               @default(now())
   updatedAt        DateTime               @updatedAt
+}
+
+/// Audit trail of security- and data-relevant actions across the dashboard
+/// and mobile app. actorName/actorRole are denormalized so entries stay
+/// readable even after the acting user is deleted (actorId goes null).
+model ActivityLog {
+  id         String         @id @default(uuid())
+  action     ActivityAction
+  targetType String
+  targetId   String?
+  actorId    String?
+  actor      User?          @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  actorName  String
+  actorRole  Role?
+  summary    String
+  metadata   Json?
+  ipAddress  String?
+  createdAt  DateTime       @default(now())
+
+  @@index([actorId])
+  @@index([action])
+  @@index([targetType, targetId])
+  @@index([createdAt])
 }
 
 model RefreshToken {

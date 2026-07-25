@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth/requireAuth";
 import { reportPatchSchema } from "@freedomtree/shared";
+import { logActivity, getClientIp } from "@/lib/audit/log";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const identity = await requireAuth(req);
@@ -38,6 +39,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const report = await prisma.report.update({
     where: { id },
     data: { ...parsed.data, origin: "WEB" },
+  });
+
+  await logActivity({
+    action: "UPDATE",
+    targetType: "Report",
+    targetId: report.id,
+    actorId: identity.userId,
+    actorName: identity.name,
+    actorRole: identity.role,
+    summary: `${identity.name} corrected the ${report.community} report for ${report.reportingMonth.toISOString().slice(0, 7)}`,
+    ipAddress: getClientIp(req.headers),
   });
 
   return NextResponse.json(report);

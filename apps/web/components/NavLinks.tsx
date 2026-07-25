@@ -31,7 +31,10 @@ function buildLinks(role: Role | undefined) {
   }
 
   if (isAdmin) {
-    links.push({ href: "/settings/users", label: "Users" });
+    links.push(
+      { href: "/settings/users", label: "Users" },
+      { href: "/settings/logs", label: "Activity Log" },
+    );
   }
 
   return links;

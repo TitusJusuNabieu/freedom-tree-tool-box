@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth/requireAuth";
+import { logActivity, getClientIp } from "@/lib/audit/log";
 
 export async function PUT(req: NextRequest) {
   const identity = await requireAuth(req);
@@ -23,6 +24,17 @@ export async function PUT(req: NextRequest) {
 
   const passwordHash = await bcrypt.hash(newPassword, 10);
   await prisma.user.update({ where: { id: identity.userId }, data: { passwordHash } });
+
+  await logActivity({
+    action: "PASSWORD_CHANGE",
+    targetType: "Profile",
+    targetId: user.id,
+    actorId: identity.userId,
+    actorName: identity.name,
+    actorRole: identity.role,
+    summary: `${identity.name} changed their own password`,
+    ipAddress: getClientIp(req.headers),
+  });
 
   return NextResponse.json({ message: "Password updated" });
 }

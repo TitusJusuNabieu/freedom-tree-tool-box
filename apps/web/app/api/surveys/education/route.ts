@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth/requireAuth";
 import { z } from "zod";
+import { logActivity, getClientIp } from "@/lib/audit/log";
 
 const schema = z.object({
   clientId: z.string().uuid(),
@@ -31,6 +32,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message }, { status: 422 });
   }
   const d = parsed.data;
+
+  const existed = await prisma.educationSurvey.findUnique({ where: { clientId: d.clientId }, select: { id: true } });
 
   const survey = await prisma.educationSurvey.upsert({
     where: { clientId: d.clientId },
@@ -61,6 +64,18 @@ export async function POST(req: NextRequest) {
       clientUpdatedAt: new Date(d.clientUpdatedAt),
     },
   });
+
+  await logActivity({
+    action: existed ? "UPDATE" : "CREATE",
+    targetType: "EducationSurvey",
+    targetId: survey.id,
+    actorId: identity.userId,
+    actorName: identity.name,
+    actorRole: identity.role,
+    summary: `${identity.name} ${existed ? "updated" : "submitted"} an education survey for ${d.communityOrSchool}`,
+    ipAddress: getClientIp(req.headers),
+  });
+
   return NextResponse.json({ id: survey.id }, { status: 201 });
 }
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/requireAuth";
 import { signShareToken } from "@/lib/auth/shareToken";
+import { logActivity, getClientIp } from "@/lib/audit/log";
 
 export async function POST(req: NextRequest) {
   const identity = await requireAuth(req);
@@ -19,5 +20,17 @@ export async function POST(req: NextRequest) {
   const days = Math.min(Math.max(Number(expiryDays) || 90, 1), 365);
 
   const token = signShareToken({ label: label.trim(), community: community ?? null, expiryDays: days }, days);
+
+  await logActivity({
+    action: "CREATE",
+    targetType: "ShareLink",
+    actorId: identity.userId,
+    actorName: identity.name,
+    actorRole: identity.role,
+    summary: `${identity.name} created a ${days}-day share link "${label.trim()}"${community ? ` for ${community}` : ""}`,
+    metadata: { label: label.trim(), community: community ?? null, expiryDays: days },
+    ipAddress: getClientIp(req.headers),
+  });
+
   return NextResponse.json({ token });
 }

@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth/requireAuth";
 import { reportSchema } from "@freedomtree/shared";
+import { logActivity, getClientIp } from "@/lib/audit/log";
 
 /**
  * Idempotent upsert keyed on clientId — this is the ONLY write path mobile
@@ -28,6 +29,8 @@ export async function POST(req: NextRequest) {
   const submittedById = identity.userId;
 
   try {
+    const existed = await prisma.report.findUnique({ where: { clientId: data.clientId }, select: { id: true } });
+
     const report = await prisma.report.upsert({
       where: { clientId: data.clientId },
       create: {
@@ -40,6 +43,18 @@ export async function POST(req: NextRequest) {
         submittedById,
       },
     });
+
+    await logActivity({
+      action: existed ? "UPDATE" : "CREATE",
+      targetType: "Report",
+      targetId: report.id,
+      actorId: identity.userId,
+      actorName: identity.name,
+      actorRole: identity.role,
+      summary: `${identity.name} ${existed ? "updated" : "submitted"} the ${report.community} report for ${report.reportingMonth.toISOString().slice(0, 7)}`,
+      ipAddress: getClientIp(req.headers),
+    });
+
     return NextResponse.json(report, { status: 201 });
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {

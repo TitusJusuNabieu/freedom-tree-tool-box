@@ -72,10 +72,15 @@ export async function rotateRefreshToken(rawToken: string) {
   return { user: existing.user, refreshToken: newRawToken };
 }
 
-export async function revokeRefreshToken(rawToken: string): Promise<void> {
+/** Revokes a refresh token and returns the user it belonged to (for audit logging), or null if not found/already revoked. */
+export async function revokeRefreshToken(rawToken: string): Promise<User | null> {
   const hashed = hashToken(rawToken);
-  await prisma.refreshToken.updateMany({
-    where: { token: hashed, revokedAt: null },
+  const existing = await prisma.refreshToken.findUnique({ where: { token: hashed }, include: { user: true } });
+  if (!existing || existing.revokedAt) return null;
+
+  await prisma.refreshToken.update({
+    where: { id: existing.id },
     data: { revokedAt: new Date() },
   });
+  return existing.user;
 }

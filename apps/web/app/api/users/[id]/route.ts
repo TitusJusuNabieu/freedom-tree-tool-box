@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth/requireAuth";
+import { logActivity, getClientIp } from "@/lib/audit/log";
 
 const ADMIN_ROLES = new Set(["ADMIN", "SUPER_ADMIN"]);
 const PRIVILEGED_ROLES = new Set(["ADMIN", "SUPER_ADMIN"]);
@@ -43,7 +44,7 @@ export async function PUT(req: NextRequest, context: { params: Promise<{ id: str
   if (!identity) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!ADMIN_ROLES.has(identity.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const target = await prisma.user.findUnique({ where: { id }, select: { role: true } });
+  const target = await prisma.user.findUnique({ where: { id }, select: { role: true, username: true } });
   if (!target) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
   // ADMIN cannot edit privileged users or assign privileged roles
@@ -64,7 +65,8 @@ export async function PUT(req: NextRequest, context: { params: Promise<{ id: str
   if (typeof body.role === "string") updateData.role = body.role as Prisma.EnumRoleFieldUpdateOperationsInput["set"];
   if ("community" in body) updateData.community = body.community ?? null;
   if (typeof body.active === "boolean") updateData.active = body.active;
-  if (typeof body.password === "string" && body.password.length > 0) {
+  const passwordReset = typeof body.password === "string" && body.password.length > 0;
+  if (passwordReset) {
     updateData.passwordHash = await bcrypt.hash(body.password, 10);
   }
 
@@ -75,6 +77,36 @@ export async function PUT(req: NextRequest, context: { params: Promise<{ id: str
   }).catch(() => null);
 
   if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+
+  const ipAddress = getClientIp(req.headers);
+  const roleChanged = typeof body.role === "string" && body.role !== target.role;
+
+  await logActivity({
+    action: roleChanged ? "ROLE_CHANGE" : "UPDATE",
+    targetType: "User",
+    targetId: user.id,
+    actorId: identity.userId,
+    actorName: identity.name,
+    actorRole: identity.role,
+    summary: roleChanged
+      ? `${identity.name} changed "${target.username}"'s role from ${target.role} to ${user.role}`
+      : `${identity.name} updated user "${user.username}"`,
+    metadata: roleChanged ? { from: target.role, to: user.role } : undefined,
+    ipAddress,
+  });
+
+  if (passwordReset) {
+    await logActivity({
+      action: "PASSWORD_CHANGE",
+      targetType: "User",
+      targetId: user.id,
+      actorId: identity.userId,
+      actorName: identity.name,
+      actorRole: identity.role,
+      summary: `${identity.name} reset the password for "${user.username}"`,
+      ipAddress,
+    });
+  }
 
   return NextResponse.json(user);
 }
@@ -104,6 +136,18 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
   }).catch(() => null);
 
   if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+
+  await logActivity({
+    action: "STATUS_CHANGE",
+    targetType: "User",
+    targetId: user.id,
+    actorId: identity.userId,
+    actorName: identity.name,
+    actorRole: identity.role,
+    summary: `${identity.name} ${user.active ? "activated" : "deactivated"} user "${user.username}"`,
+    metadata: { active: user.active },
+    ipAddress: getClientIp(req.headers),
+  });
 
   return NextResponse.json(user);
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyCredentials } from "@/lib/auth/verifyCredentials";
 import { signAccessToken, issueRefreshToken } from "@/lib/auth/jwt";
+import { logActivity, getClientIp } from "@/lib/audit/log";
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
@@ -11,10 +12,29 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "username and password are required" }, { status: 400 });
   }
 
+  const ipAddress = getClientIp(req.headers);
+
   const user = await verifyCredentials(username, password);
   if (!user) {
+    await logActivity({
+      action: "LOGIN_FAILED",
+      targetType: "Session",
+      actorName: username,
+      summary: `Failed mobile login attempt for "${username}"`,
+      ipAddress,
+    });
     return NextResponse.json({ error: "Invalid username or password" }, { status: 401 });
   }
+
+  await logActivity({
+    action: "LOGIN",
+    targetType: "Session",
+    actorId: user.id,
+    actorName: user.name,
+    actorRole: user.role,
+    summary: `${user.name} logged in (mobile)`,
+    ipAddress,
+  });
 
   const accessToken = signAccessToken(user);
   const refreshToken = await issueRefreshToken(user.id);
