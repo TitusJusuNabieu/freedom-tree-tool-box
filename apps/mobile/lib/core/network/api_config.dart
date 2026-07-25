@@ -5,5 +5,5 @@
 String get apiBaseUrl {
   const override = String.fromEnvironment('API_BASE_URL');
   if (override.isNotEmpty) return override;
-  return 'http://142.93.246.217:8080/api';
+  return 'https://toolbox.freedomtree.ca/api';
 }

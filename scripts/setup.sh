@@ -108,8 +108,7 @@ if [[ ! -f "$WEB_ENV" ]]; then
   info "Creating apps/web/.env.production.local..."
 
   if [[ -z "${PUBLIC_URL:-}" ]]; then
-    DETECTED_IP="$(curl -fsSL --max-time 3 https://ifconfig.me 2>/dev/null || hostname -I 2>/dev/null | awk '{print $1}')"
-    DEFAULT_URL="http://${DETECTED_IP:-YOUR_SERVER_IP}:8080"
+    DEFAULT_URL="https://toolbox.freedomtree.ca"
     if [[ -t 0 ]]; then
       read -rp "$LOG_PREFIX  Public URL the app will be served at [$DEFAULT_URL]: " PUBLIC_URL_INPUT
       PUBLIC_URL="${PUBLIC_URL_INPUT:-$DEFAULT_URL}"

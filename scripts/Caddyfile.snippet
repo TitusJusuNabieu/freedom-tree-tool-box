@@ -1,12 +1,14 @@
 # ── Freedom Tree — add this block to /etc/caddy/Caddyfile ────────────────────
-# Replace YOUR_SERVER_IP with your DigitalOcean droplet IP, e.g. 159.89.42.10
-# Access the app at:  http://YOUR_SERVER_IP:8080
+# Access the app at:  https://toolbox.freedomtree.ca
+# Caddy automatically provisions and renews a Let's Encrypt TLS cert for the
+# domain — no manual certificate setup needed. Requires the domain's DNS A
+# record to point at this server's public IP.
 #
 # After editing Caddyfile:
 #   sudo caddy fmt --overwrite /etc/caddy/Caddyfile
 #   sudo systemctl reload caddy
 
-:8080 {
+toolbox.freedomtree.ca {
     # Compress responses
     encode gzip
 
