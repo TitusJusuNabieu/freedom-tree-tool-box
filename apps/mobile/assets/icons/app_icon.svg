@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Freedom Tree app icon: orange background with white layered tree -->
+  <rect width="1024" height="1024" fill="#EE5B4D"/>
+  <!-- Top tier (narrowest) -->
+  <polygon points="512,82 370,308 654,308" fill="white"/>
+  <!-- Middle tier -->
+  <polygon points="512,208 296,494 728,494" fill="white"/>
+  <!-- Bottom tier (widest) -->
+  <polygon points="512,354 232,704 792,704" fill="white"/>
+  <!-- Trunk -->
+  <rect x="466" y="704" width="92" height="148" rx="20" fill="white"/>
+</svg>

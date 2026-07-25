@@ -1,0 +1,71 @@
+name: freedomtree_mobile
+description: "Freedom Tree field reporting app — offline-first maternal and infant health data collection."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.5
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # Routing
+  go_router: ^14.6.2
+
+  # Networking
+  dio: ^5.7.0
+
+  # Secure token storage
+  flutter_secure_storage: ^9.2.2
+
+  # Local offline-first database
+  drift: ^2.21.0
+  sqlite3_flutter_libs: ^0.5.27
+  path_provider: ^2.1.5
+  path: ^1.9.0
+
+  # Connectivity for sync triggers
+  connectivity_plus: ^6.1.0
+
+  # IDs for client-generated dedup keys
+  uuid: ^4.5.1
+
+  # Branding fonts
+  google_fonts: ^6.2.1
+  flutter_svg: ^2.0.16
+  shimmer: ^3.0.0
+  image_picker: ^1.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  build_runner: ^2.4.13
+  drift_dev: ^2.21.0
+  flutter_launcher_icons: ^0.14.3
+
+# ── App icon generation (run: dart run flutter_launcher_icons) ────────────────
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icons/app_icon.svg"
+  min_sdk_android: 21
+  adaptive_icon_background: "#EE5B4D"
+  adaptive_icon_foreground: "assets/icons/app_icon_foreground.svg"
+  web:
+    generate: false
+  windows:
+    generate: false
+  macos:
+    generate: false
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/brand/
+    - assets/icons/

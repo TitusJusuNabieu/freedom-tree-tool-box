@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Adaptive icon foreground: white tree on transparent background -->
+  <!-- Scaled down ~20% so the tree fits within the safe zone -->
+  <polygon points="512,160 394,346 630,346" fill="white"/>
+  <polygon points="512,270 338,510 686,510" fill="white"/>
+  <polygon points="512,400 292,700 732,700" fill="white"/>
+  <rect x="478" y="700" width="68" height="110" rx="14" fill="white"/>
+</svg>
