@@ -19,11 +19,37 @@ fail() { echo "$LOG_PREFIX ✗ $*" >&2; exit 1; }
 
 cd "$REPO_DIR"
 
+HAS_APT=0
+command -v apt-get >/dev/null 2>&1 && HAS_APT=1
+
+# ── System packages (Debian/Ubuntu) ────────────────────────────────────────────
+if [[ "$HAS_APT" -eq 1 ]]; then
+  info "Installing base system packages (curl, git, build-essential, openssl)..."
+  sudo apt-get update -qq
+  sudo apt-get install -y -qq curl git build-essential ca-certificates openssl
+  ok "Base system packages ready"
+fi
+
 # ── Pre-flight: Node ─────────────────────────────────────────────────────────
-command -v node >/dev/null 2>&1 || fail "Node.js not found. Install Node 20+ first (https://nodejs.org)."
-NODE_MAJOR="$(node -e 'process.stdout.write(process.version.split(".")[0].slice(1))')"
-[[ "$NODE_MAJOR" -ge 20 ]] || warn "Node $(node --version) detected — 20+ is recommended."
-ok "Node $(node --version) found"
+NODE_MAJOR_REQUIRED=20
+NODE_INSTALL_MAJOR=22   # LTS installed when Node is missing/too old — change if needed
+
+CURRENT_NODE_MAJOR=0
+command -v node >/dev/null 2>&1 && CURRENT_NODE_MAJOR="$(node -e 'process.stdout.write(process.version.split(".")[0].slice(1))')"
+
+if [[ "$CURRENT_NODE_MAJOR" -lt "$NODE_MAJOR_REQUIRED" ]]; then
+  if [[ "$HAS_APT" -eq 1 ]]; then
+    info "Installing Node.js $NODE_INSTALL_MAJOR via NodeSource..."
+    curl -fsSL "https://deb.nodesource.com/setup_${NODE_INSTALL_MAJOR}.x" | sudo -E bash -
+    sudo apt-get install -y -qq nodejs
+    ok "Node $(node --version) installed"
+  else
+    fail "Node.js $NODE_MAJOR_REQUIRED+ not found and no apt-based auto-install available on this system.
+Install Node manually: https://nodejs.org"
+  fi
+else
+  ok "Node $(node --version) found"
+fi
 
 # ── Pre-flight: pnpm ─────────────────────────────────────────────────────────
 if ! command -v pnpm >/dev/null 2>&1; then
@@ -82,7 +108,7 @@ info "Applying database migrations..."
 if ! attempt_migrate; then
   warn "Could not reach the database at: $DB_URL"
 
-  if command -v apt-get >/dev/null 2>&1 && [[ "$DB_URL" =~ ^postgres(ql)?://([^:]+):([^@]+)@localhost:([0-9]+)/(.+)$ ]]; then
+  if [[ "$HAS_APT" -eq 1 ]] && [[ "$DB_URL" =~ ^postgres(ql)?://([^:]+):([^@]+)@localhost:([0-9]+)/(.+)$ ]]; then
     DB_USER="${BASH_REMATCH[2]}"
     DB_PASS="${BASH_REMATCH[3]}"
     DB_PORT="${BASH_REMATCH[4]}"
